@@ -1,0 +1,21 @@
+# VS Code
+.vscode/
+
+# Build files
+*.o
+*.out
+*.exe
+
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+*.swp
+*.DS_Store
+
+# Mac system files
+*.DS_Store
+
+# Backup files
+*~
