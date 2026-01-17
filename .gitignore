@@ -5,6 +5,10 @@
 *.o
 *.out
 *.exe
+ciastkarnia
+
+# Build directories
+obj/
 
 # Log files
 *.log

@@ -101,3 +101,57 @@ void Klient::zamknijPodajniki() {
         }
     }
 }
+
+void Klient::przejdzDoKasy(int kasjerId) {
+    if (koszyk.empty()) {
+        std::cout << "[KLIENT " << klientId << "] Koszyk pusty, pomijam kasę" << std::endl;
+        return;
+    }
+    
+    std::cout << "[KLIENT " << klientId << "] Przechodzę do kasy" << std::endl;
+    
+    // Otwórz FIFO kasy do zapisu
+    std::string kasaPath = FIFO_DIR + "kasa_" + std::to_string(kasjerId);
+    int kasaFd = open(kasaPath.c_str(), O_WRONLY);
+    
+    if (kasaFd == -1) {
+        std::cerr << "[KLIENT " << klientId << "] Błąd otwarcia kasy: " 
+                  << strerror(errno) << std::endl;
+        return;
+    }
+    
+    // Struktura wiadomości do kasy
+    struct WiadomoscKasa {
+        int klientId;
+        int produktId;
+        int ilosc;
+        bool koniec;
+    };
+    
+    // Wyślij wszystkie produkty z koszyka
+    for (const auto& item : koszyk) {
+        WiadomoscKasa wiadomosc;
+        wiadomosc.klientId = klientId;
+        wiadomosc.produktId = item.first;
+        wiadomosc.ilosc = item.second;
+        wiadomosc.koniec = false;
+        
+        ssize_t written = write(kasaFd, &wiadomosc, sizeof(WiadomoscKasa));
+        if (written != sizeof(WiadomoscKasa)) {
+            std::cerr << "[KLIENT " << klientId << "] Błąd wysyłania do kasy" << std::endl;
+        }
+    }
+    
+    // Wyślij sygnał końca koszyka
+    WiadomoscKasa wiadomosc;
+    wiadomosc.klientId = klientId;
+    wiadomosc.produktId = -1;
+    wiadomosc.ilosc = 0;
+    wiadomosc.koniec = true;
+    
+    write(kasaFd, &wiadomosc, sizeof(WiadomoscKasa));
+    
+    close(kasaFd);
+    
+    std::cout << "[KLIENT " << klientId << "] Zakończyłem zakupy" << std::endl;
+}

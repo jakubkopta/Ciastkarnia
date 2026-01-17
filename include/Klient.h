@@ -28,6 +28,9 @@ public:
     // Zamyka podajniki
     void zamknijPodajniki();
     
+    // Idzie do kasy i wysyła koszyk
+    void przejdzDoKasy(int kasjerId);
+    
     // Zwraca koszyk klienta
     const std::map<int, int>& getKoszyk() const { return koszyk; }
     

@@ -1,8 +1,10 @@
 #include <iostream>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <signal.h>
 #include "Piekarz.h"
 #include "Klient.h"
+#include "Kasjer.h"
 #include "Common.h"
 
 int main() {
@@ -49,6 +51,22 @@ int main() {
     // Czekamy chwilę, żeby piekarz utworzył FIFO
     sleep(1);
     
+    // Proces kasjera - tworzy FIFO dla kasy
+    pid_t kasjer_pid = fork();
+    
+    if (kasjer_pid == 0) {
+        // Proces potomny - KASJER
+        Kasjer kasjer(1);
+        kasjer.run();
+        exit(0);
+    } else if (kasjer_pid == -1) {
+        std::cerr << "Błąd: Nie można utworzyć procesu kasjera" << std::endl;
+        return 1;
+    }
+    
+    // Czekamy chwilę, żeby kasjer utworzył FIFO
+    sleep(1);
+    
     // Proces klienta - otwiera podajniki do odczytu (blokuje się)
     pid_t klient_pid = fork();
     
@@ -75,8 +93,13 @@ int main() {
             std::cout << "  - " << produkty[item.first].nazwa 
                       << ": " << item.second << " szt." << std::endl;
         }
+        std::cout << std::endl;
         
         klient.zamknijPodajniki();
+        
+        // Klient idzie do kasy
+        klient.przejdzDoKasy(1);
+        
         exit(0);
     } else if (klient_pid == -1) {
         std::cerr << "Błąd: Nie można utworzyć procesu klienta" << std::endl;
@@ -84,8 +107,13 @@ int main() {
     }
     
     // Proces główny czeka na zakończenie procesów potomnych
+    waitpid(klient_pid, nullptr, 0);  // Czekaj na klienta (on zakończy się po kasie)
     waitpid(piekarz_pid, nullptr, 0);
-    waitpid(klient_pid, nullptr, 0);
+    
+    // Zamknij kasę (wyślij sygnał zakończenia)
+    sleep(1);  // Daj czas kasjerowi na obsłużenie ostatniego klienta
+    kill(kasjer_pid, SIGTERM);
+    waitpid(kasjer_pid, nullptr, 0);
     
     std::cout << std::endl << "=== Symulacja zakończona ===" << std::endl;
     
